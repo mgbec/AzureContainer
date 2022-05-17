@@ -1,0 +1,36 @@
+rg=$(az group list --query "[].name" --output tsv)  //create resource group for container instance
+az container create --resource-group $rg \
+  --name name_of_container \
+  --image gcr.io/cloudacademy-labs-support/aci-helloworld:1.0.0 \
+  --dns-name-label namedcontainer-$rg \
+  --ports 80 \
+  --cpu 1 \
+  --memory 2
+  
+  fqdn=$(az container show --name name_of_container --resource-group $rg --query "ipAddress.fqdn" -o tsv) //get fqdn
+  az container create \      //run benchmark process
+  --resource-group $rg \
+  --name benchmark \
+  --image gcr.io/cloudacademy-labs-support/ab:1.0.0 \
+  --dns-name-label bench-$rg \
+  --ports 80 \
+  --cpu 2 \
+  --memory 2 \
+  --command-line "/usr/bin/ab -k -c 1 -n 10000 http://$fqdn/" \
+  --restart-policy Never
+  
+  az container logs --name benchmark --resource-group $rg  //get logs
+  
+  az container delete --resource-group $rg --name name_of_container --yes  //delete container
+  
+  az container create \   //re-deploy with more resources
+  --resource-group $rg \
+  --name name_of_container \
+  --image gcr.io/cloudacademy-labs-support/aci-helloworld:1.0.0 \
+  --dns-name-label calab-$rg \
+  --ports 80 \
+  --cpu 2 \
+  --memory 4
+  
+  az container start --name benchmark --resource-group $rg    //start benchmark test again
+  
